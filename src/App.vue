@@ -2,17 +2,17 @@
   <div class="main">
     <!-- 格式化选项 -->
     <div class="options">
+      <el-checkbox-group v-model="checkList">
       <div class="list" v-for="(value, name, index) in spaceConfig" :key="index">
-        <el-checkbox-group v-model="checkList">
         <div class="category" data-action="toggle-item">
           {{name}}
           <!-- <span class="fold" data-action="toggle-item">-</span> -->
         </div>
-        <div class="block">
-          <el-checkbox class="option" v-for="(v, n, i) in value" :key="i" :label="n" @change="changeOptions" />
+        <div class="block"  v-for="(v, i) in value" :key="i">
+          <el-checkbox class="option" :label="v" @change="getConfig" />
         </div>
-        </el-checkbox-group>
       </div>
+      </el-checkbox-group>
     </div>
     <!-- 源代码 -->
     <div class="source">
@@ -20,15 +20,16 @@
     </div>
     <!-- 格式化效果 -->
     <div class="panel">
-      <highlightjs language="javascript" :code="sourceCode" />
+      <highlightjs language="javascript" :code="newCode" />
     </div>
   </div>
 </template>
 
 <script>
 import * as espree from "espree"
+import 'element-plus/es/components/checkbox/style/css'
 import { ElCheckboxGroup, ElCheckbox } from 'element-plus'
-import { onBeforeMount, onMounted, reactive, ref, toRefs } from "vue"
+import { onMounted, reactive, toRefs } from "vue"
 export default {
   setup() {
     const state = reactive({
@@ -36,171 +37,185 @@ export default {
           indent: 4,
       },
       spaceConfig: {
-          before_parentheses: {
+          before_parentheses: [
               // 函数定义
-              function_declaration: false,
+              "function_declaration",
               // 函数调用
-              function_call: false,
-              if: true,
-              for: true,
-              while: true,
-              switch: false,
-              catch: true,
-              function_expression: true,
-              async_arrow_function: false,
-          },
-          around_operator: {
+              "function_call",
+              "if",
+              "for",
+              "while",
+              "switch",
+              "catch",
+              "function_expression",
+              "async_arrow_function",
+          ],
+          around_operator: [
               // =, +=, -=
-              assignment_operator: true,
+              "assignment_operator",
               // &&, ||
-              logical_operator: true,
+              "logical_operator",
               // ==, !=, '===', '!=='
-              equality_operator: true,
+              "equality_operator",
               // <, >, <=
-              relational_operator: true,
+              "relational_operator",
               // &, |, ^
-              bitwise_operator: true,
+              "bitwise_operator",
               // +, -,
-              additive_operator: true,
+              "additive_operator",
               // *, /, %
-              multiplicative_operator: true,
+              "multiplicative_operator",
               // <<, >>, >>>
-              shift_operators: true,
+              "shift_operators",
               // +, -, ++, --
-              unary_additive_operators: true,
+              "unary_additive_operators",
               // =>
-              arrow_function: true,
+              "arrow_function",
               // !, !!
-              before_unary: false,
+              "before_unary",
               // !, !!
-              after_unary: false,
-          },
-          before_left_brace: {
-              function_left_brace: true,
-              if_left_brace: true,
-              else_left_brace: true,
-              for_left_brace: true,
-              while_left_brace: true,
-              do_left_brace: true,
-              switch_left_brace: true,
-              try_left_brace: true,
-              catch_left_brace: true,
-              finally_left_brace: true,
-              class_left_brace: true,
-          },
-          before_keywords: {
-              else_keyword: true,
-              while_keyword: true,
-              catch_keyword: true,
-              finally_keyword: true,
-          },
-          within: {
-              index_access_brackets: false,
-              grouping_parentheses: false,
-              function_declaration_parentheses: false,
-              function_call_parentheses: false,
-              if_parentheses: false,
-              for_parentheses: false,
-              while_parentheses: false,
-              switch_parentheses: false,
-              catch_parentheses: false,
-              object_literal_braces: true,
-              es6_import_or_export_braces: true,
-              array_brackets: false,
-              interpolation_expressions: false,
-          },
-          in_ternary_operator: {
-              'before_?': false,
-              'after_?': false,
-              'before_:': false,
-              'after_:': false,
-          },
-          other: {
-              before_comma: false,
-              after_comma: true,
-              before_for__semicolon: false,
-              before_property_name_value_separator: false,
-              after_property_name_value_separator: true,
-              'after_..._in_rest_or_spread': false,
-              'before_*_in_generator': false,
-              'after_*_in_generator': true,
-          },
+              "after_unary",
+          ],
+          before_left_brace: [
+              "function_left_brac",
+              "if_left_brace",
+              "else_left_brace",
+              "for_left_brace",
+              "while_left_brace",
+              "do_left_brace",
+              "switch_left_brace",
+              "try_left_brace",
+              "catch_left_brace",
+              "finally_left_brace",
+              "class_left_brace",
+          ],
+          before_keywords: [
+              "else_keyword",
+              "while_keyword",
+              "catch_keyword",
+              "finally_keyword",
+          ],
+          within: [
+              "index_access_brackets",
+              "grouping_parentheses",
+              "function_declaration_parentheses",
+              "function_call_parentheses",
+              "if_parentheses",
+              "for_parentheses",
+              "while_parentheses",
+              "switch_parentheses",
+              "catch_parentheses",
+              "object_literal_braces",
+              "es6_import_or_export_braces",
+              "array_brackets",
+              "interpolation_expressions",
+          ],
+          in_ternary_operator: [
+              'before_?',
+              'after_?',
+              'before_:',
+              'after_:',
+          ],
+          other: [
+              "before_comma",
+              "after_comma",
+              "before_for__semicolon",
+              "before_property_name_value_separator",
+              "after_property_name_value_separator",
+              'after_..._in_rest_or_spread',
+              'before_*_in_generator',
+              'after_*_in_generator',
+          ],
       },
       sourceCode: `
-      import {Component} from 'react'
+import {Component} from 'react'
+`
+// export class Greeter{
+//     greetNTimes(to,{from,times}){
+//         return range(times).map(item=>this.greet(to,from))
+//     }
+// }
 
-      export class Greeter{
-          greetNTimes(to,{from,times}){
-              return range(times).map(item=>this.greet(to,from))
-          }
-      }sx
+// export class ReactGreeter extends Greeter{
+//     greet(to,from){
+//         return (<div className="greeting">
+//             Hello, {to} from
+//             {from.map(name=><Name>{name}</Name>)}
+//         </div>)
+//     }
+// }
 
-      export class ReactGreeter extends Greeter{
-          greet(to,from){
-              return (<div className="greeting">
-                  Hello, {to} from
-                  {from.map(name=><Name>{name}</Name>)}
-              </div>)
-          }
-      }
+// var b = (1+(2+(3+4)))*3
+// new ConsoleGreeter().greetNTimes('World',{name:['Webstorm'],times:3})
 
-      var b = (1+(2+(3+4)))*3
-      new ConsoleGreeter().greetNTimes('World',{name:['Webstorm'],times:3})
+// function*fibonacci(current=1,next=1){
+//     yield current
+//     yield*fibonacci(next,current+next)
+// }
 
-      function*fibonacci(current=1,next=1){
-          yield current
-          yield*fibonacci(next,current+next)
-      }
+// let [first, second, ...rest] = take(fibonacci(...[1, 2, 3]), 10)
 
-      let [first, second, ...rest] = take(fibonacci(...[1, 2, 3]), 10)
-
-      function foo(x,y,z){
-          var i=0
-          var x={0:'zero',1:'one'}
-          var a=[0,1,2]
-          var foo = function({ a: [] }) {
-          }
-          var asyncFoo=async(x,y,z)=>{
-          }
-          var v=x.map(s=>s.length)
-          if(!i>10){
-              for(var j=0; j<10; j++){
-                  switch(j){
-                      case 0:
-                          value='zero'
-                          break
-                      case 1:
-                          value='one'
-                          break
-                  }
-                  var c=j>5?'GT 5':'LE 5'
-              }
-          }else{
-              var j=0
-              try{
-                  while(j<10){
-                      if(i==j||j>5){
-                          a[j]=i+j*12
-                      }
-                      i=(j<<2)&4
-                      j++
-                  }
-                  do{
-                      j--
-                  }while(j>0)
-              }catch(e){
-                  alert('Failure: '+e.message)
-              }finally{
-                  reset(a,i)
-              }
-          }
-      }
-
-          `,
-      checkList: []
+// function foo(x,y,z){
+//     var i=0
+//     var x={0:'zero',1:'one'}
+//     var a=[0,1,2]
+//     var foo = function({ a: [] }) {
+//     }
+//     var asyncFoo=async(x,y,z)=>{
+//     }
+//     var v=x.map(s=>s.length)
+//     if(!i>10){
+//         for(var j=0; j<10; j++){
+//             switch(j){
+//                 case 0:
+//                     value='zero'
+//                     break
+//                 case 1:
+//                     value='one'
+//                     break
+//             }
+//             var c=j>5?'GT 5':'LE 5'
+//         }
+//     }else{
+//         var j=0
+//         try{
+//             while(j<10){
+//                 if(i==j||j>5){
+//                     a[j]=i+j*12
+//                 }
+//                 i=(j<<2)&4
+//                 j++
+//             }
+//             do{
+//                 j--
+//             }while(j>0)
+//         }catch(e){
+//             alert('Failure: '+e.message)
+//         }finally{
+//             reset(a,i)
+//         }
+//     }
+// }
+,
+      checkList: [
+      // before_parentheses
+      "if", "for", "while", "catch", "function_expression",
+      // around_operator
+      "assignment_operator", "logical_operator", "equality_operator", "relational_operator", "bitwise_operator", "additive_operator", "additive_operator", "multiplicative_operator", "shift_operators", "unary_additive_operators", "arrow_function",
+      // before_left_brace
+      "function_left_brac", "if_left_brace", "else_left_brace", "for_left_brace", "while_left_brace", "do_left_brace", "switch_left_brace", "try_left_brace", "catch_left_brace", "finally_left_brace", "class_left_brace",
+      // before_keywords
+      "else_keyword", "while_keyword", "catch_keyword", "finally_keyword",
+      // within
+      "object_literal_braces", "es6_import_or_export_braces",
+      // other
+      "after_comma", "after_property_name_value_separator", "after_*_in_generator"
+      ],
+      ast: null,
+      newCode: ''
     })
 
-    const { indentConfig, spaceConfig, sourceCode, checkList } = toRefs(state)
+    const { indentConfig, spaceConfig, sourceCode, checkList, ast, newCode } = toRefs(state)
 
     const log = console.log.bind(console)
     const parse = (code) => {
@@ -219,28 +234,109 @@ export default {
                 globalReturn: true
             }
         })
-        log('ast',ast)
         return ast
     }
 
-    const changeOptions = () => {
+    const getConfig = () => {
       log('checkList===',state.checkList)
+      log('spaceConfig',state.spaceConfig)
+      let s = codeGen(state.ast)
+      s = `${s}`
+      state.newCode = s
     }
 
-    onBeforeMount(() => {
-      Object.keys(state.spaceConfig).forEach(key => {
-        Object.keys(state.spaceConfig[key]).forEach(k => {
-          if(state.spaceConfig[key][k]) {
-            state.checkList.push(k)
+    const toggleSpace = (config) => {
+      let s = state.checkList.includes(config) ? ' ' : ''
+      return s
+    }
+
+    const codeGen = (node) => {
+        let type = node.type
+        // log('type',type)
+        if (type === 'Program') {
+          let body = node.body
+          let s = body.map(b => codeGen(b)).join('\n')
+          return s
+        } else if (type === 'ImportDeclaration') {
+          let specifiers = node.specifiers
+          let source = node.source
+          // 引入用逗号分隔，所以返回结果 join(',')
+          let s = specifiers.map(s => codeGen(s)).join(', ')
+          let v = codeGen(source)
+          // 检查是否勾选对应选项
+          let es6_import_or_export_braces_space = toggleSpace('es6_import_or_export_braces')
+          log('es6_import_or_export_braces_space',`(${es6_import_or_export_braces_space})`)
+          // 拼接返回内容
+          let r = `import {${es6_import_or_export_braces_space}${s}${es6_import_or_export_braces_space}} from ${v}`
+          return r
+        } else if (type === 'ImportSpecifier') {
+          let imported = node.imported
+          let name = codeGen(imported)
+          return name
+        } else if (type === 'Identifier') {
+            return node.name
+        } else if (type === 'Literal') {
+            return node.raw
+        } else if (type === 'ExportNamedDeclaration') {
+          let declaration = node.declaration
+          let specifiers = node.specifiers
+          let source = node.source
+          log('declaration',declaration)
+          if (declaration !== null) {
+              let s = codeGen(declaration)
+              let r = `export ${s}`
+              return r
           }
-        })
-      })
-      log('checkList',state.checkList)
-    })
+        } else if (type === 'ClassDeclaration') {
+          let body = node.body
+          let s = codeGen(body)
+          // let s = `${body}`
+          let r = `${s}`
+          return r
+        } else if (type === 'ClassBody') {
+          let body = node.body
+          // let s = body.map(b => codeGen(b))
+          body = body.map(e => codeGen(e)).join('\n')
+          let s = `${body}`
+          let r = `${s}`
+          return r
+        } else if (type === 'MethodDefinition') {
+          log('MethodDefinition')
+          let key = node.key
+          let name = codeGen(key)
+          let value = node.value
+          log('value****',value)
+          value = codeGen(value)
+          log('name===',name)
+          log('value===',value)
+          let function_declaration_space = toggleSpace('function_declaration')
+          log('function_declaration_space===',`(${function_declaration_space})`)
+          return `${name}${function_declaration_space}${value}`
+        } else if (type === 'FunctionExpression') {
+          log('')
+
+        } else if (type === 'VariableDeclaration') {
+            let ds = node.declarations
+            let s1 = ds.map(d => codeGen(d)).join(', ')
+            let kind = node.kind
+            let r = `${kind} ${s1}`
+            return r
+        } else if (type === 'VariableDeclarator') {
+            let id = node.id
+            let init = node.init
+
+            id = codeGen(id)
+            init = codeGen(init)
+            let s = `${id} = ${init}`
+            return s
+        }
+    }
 
     onMounted(() => {
-      log('sourceCode',state.sourceCode)
-      parse(state.sourceCode)
+      state.ast = parse(state.sourceCode)
+      let s = codeGen(state.ast)
+      s = `${s}`
+      state.newCode = s
     })
 
     return {
@@ -248,9 +344,13 @@ export default {
       spaceConfig,
       sourceCode,
       checkList,
+      ast,
+      newCode,
       log,
       parse,
-      changeOptions
+      getConfig,
+      toggleSpace,
+      codeGen
     }
   },
   components: {
@@ -277,7 +377,7 @@ export default {
   flex-direction: column;
 }
 .category {
-  color:dodgerblue;
+  font-size: 18px;
   font-weight: bold;
 }
 .source textarea {

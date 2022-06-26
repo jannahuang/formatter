@@ -1,7 +1,7 @@
 import { createApp } from 'vue' // Vue 3.x 引入 vue 的形式
 import App from './App.vue' // 引入 APP 页面组建
 // 引入 highlight.js
-import "highlight.js/styles/atom-one-dark.css"
+import "highlight.js/styles/a11y-light.css"
 import "highlight.js/lib/common"
 import hljsVuePlugin from "@highlightjs/vue-plugin"
 
