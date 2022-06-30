@@ -2,16 +2,20 @@
   <div class="main">
     <!-- 格式化选项 -->
     <div class="options">
-      <el-checkbox-group v-model="checkList">
-      <div class="list" v-for="(value, name, index) in spaceConfig" :key="index">
-        <div class="category" data-action="toggle-item">
-          {{name}}
-          <!-- <span class="fold" data-action="toggle-item">-</span> -->
-        </div>
-        <div class="block"  v-for="(v, i) in value" :key="i">
-          <el-checkbox class="option" :label="v" @change="getConfig" />
-        </div>
+      <div class="indent">
+        <div class="category">indent</div>
+        <el-input-number v-model="indentConfig.indent" :min="1" :max="10" @change="" />
       </div>
+      <el-checkbox-group v-model="checkList">
+        <div class="list" v-for="(value, name, index) in spaceConfig" :key="index">
+          <div class="category" data-action="toggle-item">
+            {{name}}
+            <!-- <span class="fold" data-action="toggle-item">-</span> -->
+          </div>
+          <div class="block"  v-for="(v, i) in value" :key="i">
+            <el-checkbox class="option" :label="v" @change="getConfig" />
+          </div>
+        </div>
       </el-checkbox-group>
     </div>
     <!-- 源代码 -->
@@ -27,8 +31,9 @@
 
 <script>
 import * as espree from "espree"
+import 'element-plus/es/components/input-number/style/css'
 import 'element-plus/es/components/checkbox/style/css'
-import { ElCheckboxGroup, ElCheckbox } from 'element-plus'
+import { ElInputNumber, ElCheckboxGroup, ElCheckbox } from 'element-plus'
 import { onMounted, reactive, toRefs } from "vue"
 export default {
   setup() {
@@ -128,13 +133,26 @@ export default {
           ],
       },
       sourceCode: `
-import {Component} from 'react'
+export class Greeter{
+    greetNTimes(to,{from,times}){
+        return range(times).map(item=>this.greet(to,from))
+    }
+}
 `
+// import {Component,Message} from 'react'
+
 // export class Greeter{
 //     greetNTimes(to,{from,times}){
 //         return range(times).map(item=>this.greet(to,from))
 //     }
 // }
+
+// export class ConsoleGreeter extends Greeter {
+//     greet (to, from) {
+//         return `Hello, ${to} from ${from.join(',')}`
+//     }
+// }
+
 
 // export class ReactGreeter extends Greeter{
 //     greet(to,from){
@@ -238,11 +256,14 @@ import {Component} from 'react'
     }
 
     const getConfig = () => {
-      log('checkList===',state.checkList)
-      log('spaceConfig',state.spaceConfig)
       let s = codeGen(state.ast)
       s = `${s}`
       state.newCode = s
+    }
+
+    const fillIndent = (config) => {
+      let s = state.checkList.includes(config) ? ' ' : ''
+      return s
     }
 
     const toggleSpace = (config) => {
@@ -279,56 +300,83 @@ import {Component} from 'react'
             return node.raw
         } else if (type === 'ExportNamedDeclaration') {
           let declaration = node.declaration
-          let specifiers = node.specifiers
-          let source = node.source
-          log('declaration',declaration)
-          if (declaration !== null) {
-              let s = codeGen(declaration)
-              let r = `export ${s}`
-              return r
-          }
+          let s = codeGen(declaration)
+          let r = `export ${s}`
+          return r
         } else if (type === 'ClassDeclaration') {
+          let id = node.id
           let body = node.body
+          let name = codeGen(id)
           let s = codeGen(body)
-          // let s = `${body}`
-          let r = `${s}`
+          let r = `${name} ${s}`
           return r
         } else if (type === 'ClassBody') {
           let body = node.body
-          // let s = body.map(b => codeGen(b))
-          body = body.map(e => codeGen(e)).join('\n')
-          let s = `${body}`
-          let r = `${s}`
+          let b = body.map(b => codeGen(b)).join(', ')
+          let r = `{\n   ${b}\n}`
           return r
         } else if (type === 'MethodDefinition') {
-          log('MethodDefinition')
           let key = node.key
-          let name = codeGen(key)
           let value = node.value
-          log('value****',value)
-          value = codeGen(value)
-          log('name===',name)
-          log('value===',value)
-          let function_declaration_space = toggleSpace('function_declaration')
-          log('function_declaration_space===',`(${function_declaration_space})`)
-          return `${name}${function_declaration_space}${value}`
+          let k = codeGen(key)
+          let v= codeGen(value)
+          let r = `${k} ${v}`
+          return r
         } else if (type === 'FunctionExpression') {
-          log('')
-
-        } else if (type === 'VariableDeclaration') {
-            let ds = node.declarations
-            let s1 = ds.map(d => codeGen(d)).join(', ')
-            let kind = node.kind
-            let r = `${kind} ${s1}`
-            return r
-        } else if (type === 'VariableDeclarator') {
-            let id = node.id
-            let init = node.init
-
-            id = codeGen(id)
-            init = codeGen(init)
-            let s = `${id} = ${init}`
-            return s
+          let expression = node.expression
+          let generator = node.generator
+          let async = node.async
+          let params = node.params
+          let body = node.body
+          let p = params.map(p => codeGen(p)).join(', ')
+          let b = codeGen(body)
+          let r = `(${p}) ${b}`
+          return r
+        } else if (type === 'ObjectPattern') {
+          let properties = node.properties
+          let p = properties.map(p => codeGen(p)).join(', ')
+          let r = `{${p}}`
+          return r
+        } else if (type === 'Property') {
+          let key = node.key
+          let value = node.value
+          let k = codeGen(key)
+          let v = codeGen(value)
+          let r = k === v ? `${k}` : r = `${k}: ${v}`
+          return r
+        } else if (type === 'BlockStatement') {
+          let body = node.body
+          let b = body.map(b => codeGen(b)).join(', ')
+          let r = `{\n    ${b}\n}`
+          return r
+        } else if (type === 'ReturnStatement') {
+          let argument = node.argument
+          let a = codeGen(argument)
+          let r = `return ${a}`
+          return r
+        } else if (type === 'CallExpression') {
+          let callee = node.callee
+          let args = node.arguments
+          let c = codeGen(callee)
+          let a = args.map(a => codeGen(a)).join(', ')
+          let r = `${c}(${a})`
+          return r
+        } else if (type === 'ArrowFunctionExpression') {
+          let params = node.params
+          let body = node.body
+          let p = params.map(p => codeGen(p)).join(', ')
+          let b = codeGen(body)
+          let r = `${p}=>${b}`
+          return r
+        } else if (type === 'MemberExpression') {
+          let object = node.object
+          let property = node.property
+          let o = codeGen(object)
+          let p = codeGen(property)
+          let r = `${o}.${p}`
+          return r
+        } else if (type === 'ThisExpression') {
+          return 'this'
         }
     }
 
@@ -337,6 +385,7 @@ import {Component} from 'react'
       let s = codeGen(state.ast)
       s = `${s}`
       state.newCode = s
+      // log('state.newCode',state.newCode)
     })
 
     return {
@@ -349,11 +398,13 @@ import {Component} from 'react'
       log,
       parse,
       getConfig,
+      fillIndent,
       toggleSpace,
       codeGen
     }
   },
   components: {
+    ElInputNumber,
     ElCheckboxGroup,
     ElCheckbox
   },
@@ -376,9 +427,14 @@ import {Component} from 'react'
   display: flex;
   flex-direction: column;
 }
+.indent {
+  display: flex;
+  align-items: center;
+}
 .category {
   font-size: 18px;
   font-weight: bold;
+  margin-right: 1rem;
 }
 .source textarea {
   width: 100%;
