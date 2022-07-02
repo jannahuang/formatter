@@ -271,6 +271,26 @@ export class Greeter{
       return s
     }
 
+    // 处理 class 里的 body 的缩进逻辑
+    const classAddIndent = (item, indentSize) => {
+      let body = item.body
+
+    }
+
+    // 为 ast 增加 indentCount 字段以计算每行缩进总数
+    const astAddIndentCount = (astBody, indentCount = 0) => {
+      astBody.forEach(item => {
+        let type = item.type
+        if (type === 'ExportNamedDeclaration') {
+          let declaration = item.declaration
+          classAddIndent(declaration, indentCount)
+        } else if (type === 'ClassDeclaration') {
+          classAddIndent(item, indentCount)
+        }
+      })
+      log('astBody',astBody)
+    }
+
     const codeGen = (node) => {
         let type = node.type
         // log('type',type)
@@ -286,7 +306,6 @@ export class Greeter{
           let v = codeGen(source)
           // 检查是否勾选对应选项
           let es6_import_or_export_braces_space = toggleSpace('es6_import_or_export_braces')
-          log('es6_import_or_export_braces_space',`(${es6_import_or_export_braces_space})`)
           // 拼接返回内容
           let r = `import {${es6_import_or_export_braces_space}${s}${es6_import_or_export_braces_space}} from ${v}`
           return r
@@ -382,6 +401,7 @@ export class Greeter{
 
     onMounted(() => {
       state.ast = parse(state.sourceCode)
+      astAddIndentCount(state.ast.body)
       let s = codeGen(state.ast)
       s = `${s}`
       state.newCode = s
@@ -400,6 +420,8 @@ export class Greeter{
       getConfig,
       fillIndent,
       toggleSpace,
+      classAddIndent,
+      astAddIndentCount,
       codeGen
     }
   },
