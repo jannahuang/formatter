@@ -4,7 +4,7 @@
     <div class="options">
       <div class="indent">
         <div class="category">indent</div>
-        <el-input-number v-model="indentConfig.indent" :min="1" :max="10" @change="" />
+        <el-input-number v-model="indentConfig.indent" :min="1" :max="10" @change="getConfig" />
       </div>
       <el-checkbox-group v-model="checkList">
         <div class="list" v-for="(value, name, index) in spaceConfig" :key="index">
@@ -20,7 +20,7 @@
     </div>
     <!-- 源代码 -->
     <div class="source">
-      <textarea v-model="sourceCode"></textarea>
+      <textarea spellcheck="false" v-model="sourceCode"></textarea>
     </div>
     <!-- 格式化效果 -->
     <div class="panel">
@@ -261,37 +261,56 @@ export class Greeter{
       state.newCode = s
     }
 
-    const fillIndent = (config) => {
-      let s = state.checkList.includes(config) ? ' ' : ''
-      return s
+    const fillIndent = (count) => {
+      log('count',count)
+      log('indentConfig',indentConfig)
+      // padStart 是在字符串前补全长度的方法，默认用空格补全
+      return ''.padStart(count)
     }
-
+    // 判断是否加空格
     const toggleSpace = (config) => {
       let s = state.checkList.includes(config) ? ' ' : ''
       return s
     }
 
-    // 处理 class 里的 body 的缩进逻辑
-    const classAddIndent = (item, indentSize) => {
-      let body = item.body
+    // 判断当前节点 indentCount 总数
+    const initIndentCount = (indentCount) => {
+      return indentCount === 0 ? 1 : indentCount + 1
+    }
 
+    // 处理 class 里的 body 的缩进逻辑
+    const classAddIndent = (body, indentCount) => {
+      // 此时 body 的 type 为 'ClassBody'，由 AST 可知 'ClassBody' 需要缩进
+      body.indentCount = initIndentCount(indentCount)
+      // 由 AST 可知，'ClassBody' 的 body 是数组，需要遍历里面内容
+      let childBody = body.body
+      childBody.forEach(item => {
+        // 此时 b 的 type 为 'BlockStatement'，需要缩进
+        let b = item.value.body
+        b.indentCount = body.indentCount + 1
+        // 'BlockStatement' 里的内容就递归调用 astAddIndentCount 计算
+        astAddIndentCount(b.body, b.indentCount)
+      })
     }
 
     // 为 ast 增加 indentCount 字段以计算每行缩进总数
     const astAddIndentCount = (astBody, indentCount = 0) => {
       astBody.forEach(item => {
         let type = item.type
+        // 当节点 type 为 'ExportNamedDeclaration' 时，declaration.body 即是 'ClassBody'
         if (type === 'ExportNamedDeclaration') {
           let declaration = item.declaration
-          classAddIndent(declaration, indentCount)
-        } else if (type === 'ClassDeclaration') {
-          classAddIndent(item, indentCount)
-        }
+          classAddIndent(declaration.body, indentCount)
+        } 
+        // else if (type === 'ClassDeclaration') {
+        //   classAddIndent(item, indentCount)
+        // }
       })
       log('astBody',astBody)
     }
 
     const codeGen = (node) => {
+        let indentConfig = state.indentConfig
         let type = node.type
         // log('type',type)
         if (type === 'Program') {
@@ -327,12 +346,18 @@ export class Greeter{
           let body = node.body
           let name = codeGen(id)
           let s = codeGen(body)
-          let r = `${name} ${s}`
+          let r = `class ${name} {\n${s}\n}`
           return r
         } else if (type === 'ClassBody') {
           let body = node.body
-          let b = body.map(b => codeGen(b)).join(', ')
-          let r = `{\n   ${b}\n}`
+          let startSpace =  fillIndent(indentConfig.indent * node.indentCount)
+          body = body.map(e=> {
+            let b = startSpace + codeGen(e)
+            // let b = codeGen(e)
+            log('b',b)
+            return b
+          }).join('\n')
+          let r = `${body}`
           return r
         } else if (type === 'MethodDefinition') {
           let key = node.key
@@ -365,8 +390,11 @@ export class Greeter{
           return r
         } else if (type === 'BlockStatement') {
           let body = node.body
+          let startSpace =  fillIndent(indentConfig.indent * node.indentCount)
+          let endSpace = fillIndent(indentConfig.indent * (node.indentCount - 1))
           let b = body.map(b => codeGen(b)).join(', ')
-          let r = `{\n    ${b}\n}`
+          let r = `{\n${startSpace}${b}\n${endSpace}}`
+          // let r = `{\n${b}\n}`
           return r
         } else if (type === 'ReturnStatement') {
           let argument = node.argument
@@ -401,6 +429,7 @@ export class Greeter{
 
     onMounted(() => {
       state.ast = parse(state.sourceCode)
+      log('state.ast',state.ast)
       astAddIndentCount(state.ast.body)
       let s = codeGen(state.ast)
       s = `${s}`
@@ -420,6 +449,7 @@ export class Greeter{
       getConfig,
       fillIndent,
       toggleSpace,
+      initIndentCount,
       classAddIndent,
       astAddIndentCount,
       codeGen
