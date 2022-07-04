@@ -133,12 +133,14 @@ export default {
           ],
       },
       sourceCode: `
-export class Greeter{
-    greetNTimes(to,{from,times}){
-        return range(times).map(item=>this.greet(to,from))
-    }
+function*fibonacci(current=1,next=1){
+    yield current
+    yield*fibonacci(next,current+next)
 }
+
+let [first, second, ...rest] = take(fibonacci(...[1, 2, 3]), 10)
 `
+
 // import {Component,Message} from 'react'
 
 // export class Greeter{
@@ -149,7 +151,7 @@ export class Greeter{
 
 // export class ConsoleGreeter extends Greeter {
 //     greet (to, from) {
-//         return `Hello, ${to} from ${from.join(',')}`
+//         return \`Hello, \${to} from \${from.join(',')}\`
 //     }
 // }
 
@@ -334,7 +336,7 @@ export class Greeter{
           return name
         } else if (type === 'Identifier') {
             return node.name
-        } else if (type === 'Literal') {
+        } else if (type === 'Literal' || type === 'JSXText') {
             return node.raw
         } else if (type === 'ExportNamedDeclaration') {
           let declaration = node.declaration
@@ -344,9 +346,11 @@ export class Greeter{
         } else if (type === 'ClassDeclaration') {
           let id = node.id
           let body = node.body
+          let superClass = node.superClass
           let name = codeGen(id)
           let s = codeGen(body)
-          let r = `class ${name} {\n${s}\n}`
+          let sc = codeGen(superClass)
+          let r = sc ? `class ${name} extends ${sc} {\n${s}\n}` : `class ${name} {\n${s}\n}`
           return r
         } else if (type === 'ClassBody') {
           let body = node.body
@@ -394,13 +398,64 @@ export class Greeter{
           let endSpace = fillIndent(indentConfig.indent * (node.indentCount - 1))
           let b = body.map(b => codeGen(b)).join(', ')
           let r = `{\n${startSpace}${b}\n${endSpace}}`
-          // let r = `{\n${b}\n}`
           return r
         } else if (type === 'ReturnStatement') {
           let argument = node.argument
           let a = codeGen(argument)
           let r = `return ${a}`
           return r
+        } else if (type === 'JSXElement') {
+          let openingElement = node.openingElement
+          let closingElement = node.closingElement
+          let children = node.children
+          let open = codeGen(openingElement)
+          let close = codeGen(closingElement) 
+          let c = children.map(c => codeGen(c)).join('')
+          let r = `(${open}${c}${close})`
+          return r
+        } else if (type === 'JSXOpeningElement') {
+          let attributes = node.attributes
+          let name = node.name
+          let a = attributes.map(a => codeGen(a)).join(' ') || ''
+          let n = codeGen(name)
+          let as = a ? ` ${a}` : ''
+          let r = node.selfClosing ? `<${n}${as} />` : `<${n}${as}>`
+          log('r',r)
+          return r
+        } else if (type === 'JSXAttribute') {
+          let name = node.name
+          let value = node.value
+          let n = codeGen(name)
+          let v = codeGen(value)
+          let r = `${n}=${v}`
+          return r
+        } else if (type === 'JSXIdentifier') {
+          return node.name
+        } else if (type === 'JSXClosingElement') {
+          let name = node.name
+          let n = codeGen(name)
+          let r = `</${n}>`
+          return r
+        } else if (type === 'JSXExpressionContainer') {
+          let expression = node.expression
+          let e = codeGen(expression)
+          let r = `{${e}}`
+          return r
+        } else if (type === 'TemplateLiteral') {
+          let expressions = node.expressions
+          let quasis = node.quasis
+          let e = expressions.map(e => codeGen(e))
+          let q = quasis.map(q => codeGen(q))
+          // e 拼接一个空字符串，用于遍历 quasis
+          e.concat('')
+          let s = ''
+          for (let i = 0; i < e.length; i++) {
+            s += q[i] + '${'+ e[i] + '}'
+          }
+          let r = `\`${s}\``
+          return r
+        } else if (type === 'TemplateElement') {
+          return node.value.raw
         } else if (type === 'CallExpression') {
           let callee = node.callee
           let args = node.arguments
@@ -424,6 +479,62 @@ export class Greeter{
           return r
         } else if (type === 'ThisExpression') {
           return 'this'
+        } else if (type === 'VariableDeclaration') {
+          let declarations = node.declarations
+          let kind = node.kind
+          let d = declarations.map(d => codeGen(d)).join(', ')
+          let r = `${kind} ${d}`
+          return r
+        } else if (type === 'VariableDeclarator') {
+          let id = node.id
+          let init = node.init
+          let name = codeGen(id)
+          let i = codeGen(init)
+          let r = `${name} = ${i}`
+          return r
+        } else if (type === 'BinaryExpression') {
+          let left = node.left
+          let operator = node.operator
+          let right = node.right
+          let l = codeGen(left)
+          let r = codeGen(right)
+          let s = `(${l}${operator}${r})`
+          return s
+        } else if (type === 'ExpressionStatement') {
+          let expression = node.expression
+          let e = codeGen(expression)
+          return e
+        } else if (type === 'CallExpression') {
+          let callee = node.callee
+          let args = node.arguments
+          let c = codeGen(callee)
+          let a = codeGen(args)
+          let r = `${c}(${a})`
+          return r
+        } else if (type === 'MemberExpression') {
+          let object = node.object
+          let property = node.property
+          let o = codeGen(object)
+          let p = codeGen(property)
+          let r = `${o}.${p}`
+          return r
+        } else if (type === 'NewExpression') {
+          let callee = node.callee
+          let args = node.arguments
+          let c = codeGen(callee)
+          let a = args.length ? codeGen(args) : ''
+          let r = `New ${c}(${a})`
+          return r
+        } else if (type === 'ObjectExpression') {
+          let properties = node.properties
+          let p = properties.map(p => codeGen(p)).join(', ')
+          let r = `${p}`
+          return r
+        } else if (type === 'ArrayExpression') {
+          let elements = node.elements
+          let e = elements.map(e => codeGen(e)).join(', ')
+          let r = `[${e}]`
+          return r
         }
     }
 
