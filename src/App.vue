@@ -133,12 +133,47 @@ export default {
           ],
       },
       sourceCode: `
-function*fibonacci(current=1,next=1){
-    yield current
-    yield*fibonacci(next,current+next)
+function foo(x,y,z){
+    var i=0
+    var x={0:'zero',1:'one'}
+    var a=[0,1,2]
+    var foo = function({ a: [] }) {
+    }
+    var asyncFoo=async(x,y,z)=>{
+    }
+    var v=x.map(s=>s.length)
+    if(!i>10){
+        for(var j=0; j<10; j++){
+            switch(j){
+                case 0:
+                    value='zero'
+                    break
+                case 1:
+                    value='one'
+                    break
+            }
+            var c=j>5?'GT 5':'LE 5'
+        }
+    }else{
+        var j=0
+        try{
+            while(j<10){
+                if(i==j||j>5){
+                    a[j]=i+j*12
+                }
+                i=(j<<2)&4
+                j++
+            }
+            do{
+                j--
+            }while(j>0)
+        }catch(e){
+            alert('Failure: '+e.message)
+        }finally{
+            reset(a,i)
+        }
+    }
 }
-
-let [first, second, ...rest] = take(fibonacci(...[1, 2, 3]), 10)
 `
 
 // import {Component,Message} from 'react'
@@ -396,7 +431,7 @@ let [first, second, ...rest] = take(fibonacci(...[1, 2, 3]), 10)
           let body = node.body
           let startSpace =  fillIndent(indentConfig.indent * node.indentCount)
           let endSpace = fillIndent(indentConfig.indent * (node.indentCount - 1))
-          let b = body.map(b => codeGen(b)).join(', ')
+          let b = body.map(b => codeGen(b)).join('\n')
           let r = `{\n${startSpace}${b}\n${endSpace}}`
           return r
         } else if (type === 'ReturnStatement') {
@@ -534,6 +569,50 @@ let [first, second, ...rest] = take(fibonacci(...[1, 2, 3]), 10)
           let elements = node.elements
           let e = elements.map(e => codeGen(e)).join(', ')
           let r = `[${e}]`
+          return r
+        } else if (type === 'FunctionDeclaration') {
+          let id = node.id
+          let expression = node.expression
+          let generator = node.generator
+          let async = node.async
+          let params = node.params
+          let body = node.body
+          let name = codeGen(id)
+          let p = params.map(p => codeGen(p)).join(',')
+          let b = codeGen(body)
+          let r = `function ${generator?'*':''}${name}(${p})${b}`
+          return r
+        } else if (type === 'AssignmentPattern') {
+          let left = node.left
+          let right = node.right
+          let l = codeGen(left)
+          let r = codeGen(right)
+          let s = `${l}=${r}`
+          return s
+        } else if (type === 'ExpressionStatement') {
+          let expression = node.expression
+          let e = codeGen(expression)
+          let r = `${e}`
+          return r
+        } else if (type === 'YieldExpression') {
+          let args = node.argument
+          let a = codeGen(args)
+          let r = `yield ${a}`
+          return r
+        } else if (type === 'ArrayPattern') {
+          let elements = node.elements
+          let e = elements.map(e => codeGen(e)).join(', ')
+          let r = `[${e}]`
+          return r 
+        } else if (type === 'RestElement') {
+          let arg = node.argument
+          let a = codeGen(arg)
+          let r = `...${a}`
+          return r
+        } else if (type === 'SpreadElement') {
+          let arg = node.argument
+          let a = codeGen(arg)
+          let r = `...${a}`
           return r
         }
     }
