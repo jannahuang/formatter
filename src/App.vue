@@ -299,8 +299,8 @@ function foo(x,y,z){
     }
 
     const fillIndent = (count) => {
-      log('count',count)
-      log('indentConfig',indentConfig)
+      // log('count',count)
+      // log('indentConfig',indentConfig)
       // padStart 是在字符串前补全长度的方法，默认用空格补全
       return ''.padStart(count)
     }
@@ -330,6 +330,28 @@ function foo(x,y,z){
       })
     }
 
+    // 处理 if 里的 body 的缩进逻辑
+    const ifAddIndent = (node, indentCount) => {
+      let alternate = node.alternate
+      let consequent = node.consequent
+      consequent.indentCount = initIndentCount(indentCount)
+      let body = consequent.body
+      if (body.length) {
+        astAddIndentCount(body, consequent.indentCount)
+      }
+      if (alternate) {
+        if (alternate.type === 'BlockStatement') {
+          alternate.indentCount = initIndentCount(indentCount)
+          let b = alternate.body
+          if (b.length) {
+            astAddIndentCount(b, alternate.indentCount)
+          }
+        } else if (alternate.type === 'IfStatement') {
+          ifAddIndent(alternate, indentCount)
+        }
+      }
+    }
+
     // 为 ast 增加 indentCount 字段以计算每行缩进总数
     const astAddIndentCount = (astBody, indentCount = 0) => {
       astBody.forEach(item => {
@@ -338,12 +360,38 @@ function foo(x,y,z){
         if (type === 'ExportNamedDeclaration') {
           let declaration = item.declaration
           classAddIndent(declaration.body, indentCount)
-        } 
-        // else if (type === 'ClassDeclaration') {
-        //   classAddIndent(item, indentCount)
-        // }
+        } else if (type === 'ClassDeclaration') {
+          classAddIndent(item, indentCount)
+        } else if (type === 'FunctionDeclaration') {
+          let body = item.body
+          if (body != undefined) {
+            body.indentCount = initIndentCount(indentCount)
+            let b = body.body
+            if (b.length) {
+              astAddIndentCount(b, body.indentCount)
+            }
+          }
+        } else if (type === 'VariableDeclaration') {
+          let declarations = item.declarations
+          if (declarations.length) {
+            declarations.forEach(d => {
+              if(d.init) {
+                let body = d.init.body
+                if (body) {
+                  body.indentCount = initIndentCount(indentCount)
+                  let b = body.body
+                  if(b.length) {
+                    astAddIndentCount(b, indentCount)
+                  }
+                }
+              }
+            })
+          }
+        } else if (type === 'IfStatement') {
+          ifAddIndent(item, indentCount)
+        }
       })
-      log('astBody',astBody)
+      // log('astBody',astBody)
     }
 
     const codeGen = (node) => {
@@ -392,8 +440,6 @@ function foo(x,y,z){
           let startSpace =  fillIndent(indentConfig.indent * node.indentCount)
           body = body.map(e=> {
             let b = startSpace + codeGen(e)
-            // let b = codeGen(e)
-            log('b',b)
             return b
           }).join('\n')
           let r = `${body}`
@@ -431,8 +477,12 @@ function foo(x,y,z){
           let body = node.body
           let startSpace =  fillIndent(indentConfig.indent * node.indentCount)
           let endSpace = fillIndent(indentConfig.indent * (node.indentCount - 1))
-          let b = body.map(b => codeGen(b)).join('\n')
-          let r = `{\n${startSpace}${b}\n${endSpace}}`
+          log('startSpace',startSpace.length)
+          log('endSpace',endSpace.length)
+          let b = body.length ? body.map(b => {
+            return startSpace + codeGen(b)
+          }).join('\n') + '\n': ''
+          let r = `{\n${b}${endSpace}}`
           return r
         } else if (type === 'ReturnStatement') {
           let argument = node.argument
@@ -614,6 +664,111 @@ function foo(x,y,z){
           let a = codeGen(arg)
           let r = `...${a}`
           return r
+        } else if (type === 'IfStatement') {
+          let test = node.test
+          let consequent = node.consequent
+          let alternate = node.alternate
+          let t = codeGen(test)
+          let c = codeGen(consequent)
+          let a = alternate ? codeGen(alternate) : ''
+          let r = `if${t}${c}${alternate?'else'+a : ''}`
+          return r
+        } else if (type === 'UnaryExpression') {
+            let operator = node.operator
+            let prefix = node.prefix
+            let argument = node.argument
+            let a = codeGen(argument)
+            let r = `${operator}${a}`
+            return r
+        } else if (type === 'ForStatement') {
+          let init = node.init
+          let test = node.test
+          let update = node.update
+          let body = node.body
+          let i = codeGen(init)
+          let t = codeGen(test)
+          let u = codeGen(update)
+          let b = codeGen(body)
+          let r = `for(${i}; ${t}; ${u})${b}`
+          return r
+        } else if (type === 'UpdateExpression') {
+          let operator = node.operator
+          let prefix = node.prefix
+          let argument = node.argument
+          let a = codeGen(argument)
+          let r = `${a}${operator}`
+          return r
+        } else if (type === 'SwitchStatement') {
+          let discriminant = node.discriminant
+          let cases = node.cases
+          let d = codeGen(discriminant)
+          let c = cases.map(c => codeGen(c)).join('\n')
+          let r = `switch(${d}){\n${c}\n}`
+          return r
+        } else if (type === 'SwitchCase') {
+          let consequent = node.consequent
+          let test = node.test
+          let c = consequent.map(c => codeGen(c)).join('\n')
+          let t = codeGen(test)
+          let r = `case ${t}:${c}`
+          return r
+        } else if (type === 'AssignmentExpression') {
+          let operator = node.operator
+          let left = node.left
+          let right = node.right
+          let l = codeGen(left)
+          let r = codeGen(right)
+          let s = `${l}${operator}${r}`
+          return s
+        } else if (type === 'BreakStatement') {
+          return 'break'
+        } else if (type === 'ConditionalExpression') {
+          let test = node.test
+          let consequent = node.consequent
+          let alternate = node.alternate
+          let t = codeGen(test)
+          let c = codeGen(consequent)
+          let a = codeGen(alternate)
+          let r = `${t}?${c}:${a}`
+          return r
+        } else if (type === 'TryStatement') {
+          let block = node.block
+          let handler = node.handler
+          let finalizer = node.finalizer
+          let b = codeGen(block)
+          let h = codeGen(handler)
+          let f = codeGen(finalizer)
+          let r = `try${b}${h}finally${f}`
+          return r
+        } else if (type === 'WhileStatement') {
+          let test = node.test
+          let body = node.body
+          let t = codeGen(test)
+          let b = codeGen(body)
+          let r = `while(${t}){\n${b}\n}`
+          return r
+        } else if (type === 'DoWhileStatement') {
+          let test = node.test
+          let body = node.body
+          let t = codeGen(test)
+          let b = codeGen(body)
+          let r = `do${b}while${t}`
+          return r
+        } else if (type === 'CatchClause') {
+          let param = node.param
+          let body = node.body
+          let p = codeGen(param)
+          let b = codeGen(body)
+          let r = `catch(${p}){\n${b}\n}`
+          return r
+        } else if (type === 'LogicalExpression') {
+          let operator = node.operator
+          let left = node.left
+          let right = node.right
+          let l = codeGen(left)
+          let r = codeGen(right)
+          let s = `(${l}${operator}${r})`
+          return s
         }
     }
 
@@ -641,6 +796,7 @@ function foo(x,y,z){
       toggleSpace,
       initIndentCount,
       classAddIndent,
+      ifAddIndent,
       astAddIndentCount,
       codeGen
     }
