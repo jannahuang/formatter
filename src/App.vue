@@ -133,6 +133,39 @@ export default {
           ],
       },
       sourceCode: `
+import {Component,Message} from 'react'
+
+export class Greeter{
+    greetNTimes(to,{from,times}){
+        return range(times).map(item=>this.greet(to,from))
+    }
+}
+
+export class ConsoleGreeter extends Greeter {
+    greet (to, from) {
+        return \`Hello, \${to} from \${from.join(',')}\`
+    }
+}
+
+export class ReactGreeter extends Greeter{
+    greet(to,from){
+        return (<div className="greeting">
+            Hello, {to} from
+            {from.map(name=><Name>{name}</Name>)}
+        </div>)
+    }
+}
+
+var b = (1+(2+(3+4)))*3
+new ConsoleGreeter().greetNTimes('World',{name:['Webstorm'],times:3})
+
+function*fibonacci(current=1,next=1){
+    yield current
+    yield*fibonacci(next,current+next)
+}
+
+let [first, second, ...rest] = take(fibonacci(...[1, 2, 3]), 10)
+
 function foo(x,y,z){
     var i=0
     var x={0:'zero',1:'one'}
@@ -299,8 +332,6 @@ function foo(x,y,z){
     }
 
     const fillIndent = (count) => {
-      // log('count',count)
-      // log('indentConfig',indentConfig)
       // padStart 是在字符串前补全长度的方法，默认用空格补全
       return ''.padStart(count)
     }
@@ -389,7 +420,62 @@ function foo(x,y,z){
           }
         } else if (type === 'IfStatement') {
           ifAddIndent(item, indentCount)
-        }
+        } else if (type === 'ForStatement') {
+              let body = item.body
+              if (body) {
+                body.indentCount = initIndentCount(indentCount)
+                let b = body.body
+                if (b.length) {
+                    astAddIndentCount(b, body.indentCount)
+                }
+              }
+          } else if (type === 'SwitchStatement') {
+              item.indentCount = initIndentCount(indentCount)
+            let cases = item.cases
+            if (cases.length) {
+                astAddIndentCount(cases, item.indentCount)
+            }
+          } else if (type === 'SwitchCase') {
+              item.indentCount = initIndentCount(indentCount)
+              let consequent = item.consequent
+              if (consequent.length) {
+                  astAddIndentCount(consequent, item.indentCount)
+              }
+          } else if (type === 'TryStatement') {
+            let block = item.block
+            block.indentCount = initIndentCount(indentCount)
+            let body = block.body
+            if (body.length) {
+              astAddIndentCount(body, block.indentCount)
+            }
+            let handler = item.handler
+            let hb = handler.body
+            hb.indentCount = initIndentCount(indentCount)
+            let hcb = hb.body
+            if (hcb.length) {
+              astAddIndentCount(hcb, hb.indentCount)
+            }
+            let finalizer = item.finalizer
+            finalizer.indentCount = initIndentCount(indentCount)
+            let fb = finalizer.body
+            if (fb.length) {
+              astAddIndentCount(fb, finalizer.indentCount)
+            }
+          } else if (type === 'WhileStatement') {
+            let body = item.body
+            body.indentCount = initIndentCount(indentCount)
+            let b = body.body
+            if (b.length) {
+              astAddIndentCount(b, body.indentCount)
+            }
+          } else if (type === 'DoWhileStatement') {
+            let body = item.body
+            body.indentCount = initIndentCount(indentCount)
+            let b = body.body
+            if (b.length) {
+              astAddIndentCount(b, body.indentCount)
+            }
+          }
       })
       // log('astBody',astBody)
     }
@@ -400,7 +486,7 @@ function foo(x,y,z){
         // log('type',type)
         if (type === 'Program') {
           let body = node.body
-          let s = body.map(b => codeGen(b)).join('\n')
+          let s = body.map(b => codeGen(b)).join('\n\n')
           return s
         } else if (type === 'ImportDeclaration') {
           let specifiers = node.specifiers
@@ -423,8 +509,12 @@ function foo(x,y,z){
             return node.raw
         } else if (type === 'ExportNamedDeclaration') {
           let declaration = node.declaration
-          let s = codeGen(declaration)
-          let r = `export ${s}`
+          let s
+          let r
+          if(declaration) {
+            s = codeGen(declaration)
+            r = `export ${s}`
+          }
           return r
         } else if (type === 'ClassDeclaration') {
           let id = node.id
@@ -432,7 +522,10 @@ function foo(x,y,z){
           let superClass = node.superClass
           let name = codeGen(id)
           let s = codeGen(body)
-          let sc = codeGen(superClass)
+          let sc = ''
+          if (superClass) {
+            sc = codeGen(superClass)
+          }
           let r = sc ? `class ${name} extends ${sc} {\n${s}\n}` : `class ${name} {\n${s}\n}`
           return r
         } else if (type === 'ClassBody') {
@@ -471,14 +564,12 @@ function foo(x,y,z){
           let value = node.value
           let k = codeGen(key)
           let v = codeGen(value)
-          let r = k === v ? `${k}` : r = `${k}: ${v}`
+          let r = k === v ? `${k}` : `${k}: ${v}`
           return r
         } else if (type === 'BlockStatement') {
           let body = node.body
           let startSpace =  fillIndent(indentConfig.indent * node.indentCount)
           let endSpace = fillIndent(indentConfig.indent * (node.indentCount - 1))
-          log('startSpace',startSpace.length)
-          log('endSpace',endSpace.length)
           let b = body.length ? body.map(b => {
             return startSpace + codeGen(b)
           }).join('\n') + '\n': ''
@@ -505,7 +596,6 @@ function foo(x,y,z){
           let n = codeGen(name)
           let as = a ? ` ${a}` : ''
           let r = node.selfClosing ? `<${n}${as} />` : `<${n}${as}>`
-          log('r',r)
           return r
         } else if (type === 'JSXAttribute') {
           let name = node.name
@@ -698,19 +788,28 @@ function foo(x,y,z){
           let a = codeGen(argument)
           let r = `${a}${operator}`
           return r
-        } else if (type === 'SwitchStatement') {
+        }else if (type === 'SwitchStatement') {
           let discriminant = node.discriminant
           let cases = node.cases
+          let startSpace =  fillIndent(indentConfig.indent * node.indentCount)
+          let endSpace = fillIndent(indentConfig.indent * (node.indentCount - 1))
           let d = codeGen(discriminant)
-          let c = cases.map(c => codeGen(c)).join('\n')
-          let r = `switch(${d}){\n${c}\n}`
+          let c = cases.map(c => {
+            return startSpace + codeGen(c)
+          }).join('\n')
+
+          let r = `switch(${d}){\n${c}\n${endSpace}}`
           return r
         } else if (type === 'SwitchCase') {
           let consequent = node.consequent
           let test = node.test
-          let c = consequent.map(c => codeGen(c)).join('\n')
+          let startSpace =  fillIndent(indentConfig.indent * node.indentCount)
+          let endSpace = fillIndent(indentConfig.indent * (node.indentCount - 1))
+          let c = consequent.map(c => {
+            return startSpace + codeGen(c)
+          }).join('\n')
           let t = codeGen(test)
-          let r = `case ${t}:${c}`
+          let r = `case ${t}:\n${c}`
           return r
         } else if (type === 'AssignmentExpression') {
           let operator = node.operator
@@ -743,9 +842,11 @@ function foo(x,y,z){
         } else if (type === 'WhileStatement') {
           let test = node.test
           let body = node.body
+          let startSpace =  fillIndent(indentConfig.indent * node.indentCount)
+          let endSpace = fillIndent(indentConfig.indent * (node.indentCount - 1))
           let t = codeGen(test)
           let b = codeGen(body)
-          let r = `while(${t}){\n${b}\n}`
+          let r = `while(${t})${b}`
           return r
         } else if (type === 'DoWhileStatement') {
           let test = node.test
@@ -759,7 +860,7 @@ function foo(x,y,z){
           let body = node.body
           let p = codeGen(param)
           let b = codeGen(body)
-          let r = `catch(${p}){\n${b}\n}`
+          let r = `catch(${p})${b}`
           return r
         } else if (type === 'LogicalExpression') {
           let operator = node.operator
@@ -774,7 +875,6 @@ function foo(x,y,z){
 
     onMounted(() => {
       state.ast = parse(state.sourceCode)
-      log('state.ast',state.ast)
       astAddIndentCount(state.ast.body)
       let s = codeGen(state.ast)
       s = `${s}`
