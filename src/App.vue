@@ -82,7 +82,7 @@ export default {
               "after_unary",
           ],
           before_left_brace: [
-              "function_left_brac",
+              "function_left_brace",
               "if_left_brace",
               "else_left_brace",
               "for_left_brace",
@@ -291,7 +291,7 @@ function foo(x,y,z){
       // around_operator
       "assignment_operator", "logical_operator", "equality_operator", "relational_operator", "bitwise_operator", "additive_operator", "additive_operator", "multiplicative_operator", "shift_operators", "unary_additive_operators", "arrow_function",
       // before_left_brace
-      "function_left_brac", "if_left_brace", "else_left_brace", "for_left_brace", "while_left_brace", "do_left_brace", "switch_left_brace", "try_left_brace", "catch_left_brace", "finally_left_brace", "class_left_brace",
+      "function_left_brace", "if_left_brace", "else_left_brace", "for_left_brace", "while_left_brace", "do_left_brace", "switch_left_brace", "try_left_brace", "catch_left_brace", "finally_left_brace", "class_left_brace",
       // before_keywords
       "else_keyword", "while_keyword", "catch_keyword", "finally_keyword",
       // within
@@ -526,7 +526,8 @@ function foo(x,y,z){
           if (superClass) {
             sc = codeGen(superClass)
           }
-          let r = sc ? `class ${name} extends ${sc} {\n${s}\n}` : `class ${name} {\n${s}\n}`
+          let class_left_brace = toggleSpace('class_left_brace')
+          let r = sc ? `class ${name} extends ${sc}${class_left_brace}{\n${s}\n}` : `class ${name}${class_left_brace}{\n${s}\n}`
           return r
         } else if (type === 'ClassBody') {
           let body = node.body
@@ -542,7 +543,8 @@ function foo(x,y,z){
           let value = node.value
           let k = codeGen(key)
           let v= codeGen(value)
-          let r = `${k} ${v}`
+          let function_declaration = toggleSpace('function_declaration')
+          let r = `${k}${function_declaration}${v}`
           return r
         } else if (type === 'FunctionExpression') {
           let expression = node.expression
@@ -552,12 +554,16 @@ function foo(x,y,z){
           let body = node.body
           let p = params.map(p => codeGen(p)).join(', ')
           let b = codeGen(body)
-          let r = `(${p}) ${b}`
+          let function_expression = toggleSpace('function_expression')
+          let function_left_brace = toggleSpace('function_left_brace')
+          let function_declaration_parentheses = toggleSpace('function_declaration_parentheses')
+          let r = `${function_expression}(${function_declaration_parentheses}${p}${function_declaration_parentheses})${function_left_brace}${b}`
           return r
         } else if (type === 'ObjectPattern') {
           let properties = node.properties
           let p = properties.map(p => codeGen(p)).join(', ')
-          let r = `{${p}}`
+          let object_literal_braces = toggleSpace('object_literal_braces')
+          let r = `{${object_literal_braces}${p}${object_literal_braces}}`
           return r
         } else if (type === 'Property') {
           let key = node.key
@@ -587,7 +593,8 @@ function foo(x,y,z){
           let open = codeGen(openingElement)
           let close = codeGen(closingElement) 
           let c = children.map(c => codeGen(c)).join('')
-          let r = `(${open}${c}${close})`
+          let grouping_parentheses = toggleSpace('grouping_parentheses')
+          let r = `(${grouping_parentheses}${open}${c}${close}${grouping_parentheses})`
           return r
         } else if (type === 'JSXOpeningElement') {
           let attributes = node.attributes
@@ -636,21 +643,27 @@ function foo(x,y,z){
           let args = node.arguments
           let c = codeGen(callee)
           let a = args.map(a => codeGen(a)).join(', ')
-          let r = `${c}(${a})`
+          let function_call = toggleSpace('function_call')
+          let function_call_parentheses = toggleSpace('function_call_parentheses')
+          let r = `${c}${function_call}(${function_call_parentheses}${a}${function_call_parentheses})`
           return r
         } else if (type === 'ArrowFunctionExpression') {
           let params = node.params
           let body = node.body
           let p = params.map(p => codeGen(p)).join(', ')
           let b = codeGen(body)
-          let r = `${p}=>${b}`
+          let async_arrow_function = toggleSpace('async_arrow_function')
+          let arrow_function = toggleSpace('arrow_function')
+          let r = `async${async_arrow_function}(${p})${arrow_function}=>${arrow_function}${b}`
           return r
         } else if (type === 'MemberExpression') {
           let object = node.object
           let property = node.property
+          let computed = node.computed
           let o = codeGen(object)
           let p = codeGen(property)
-          let r = `${o}.${p}`
+          let index_access_brackets = toggleSpace('index_access_brackets')
+          let r = computed ? `${o}[${index_access_brackets}${p}${index_access_brackets}]`:`${o}.${p}`
           return r
         } else if (type === 'ThisExpression') {
           return 'this'
@@ -673,26 +686,26 @@ function foo(x,y,z){
           let right = node.right
           let l = codeGen(left)
           let r = codeGen(right)
-          let s = `(${l}${operator}${r})`
+          let binary_operator = ''
+          if (['==','!=','===','!=='].includes(operator)) {
+            binary_operator = toggleSpace('equality_operator')
+          } else if (['<', '>', '<=', '>='].includes(operator)) {
+            binary_operator = toggleSpace('relational_operator')
+          } else if (['%', '|', '^'].includes(operator)) {
+            binary_operator = toggleSpace('bitwise_operator')
+          } else if (['+', '-'].includes(operator)) {
+            binary_operator = toggleSpace('additive_operator')
+          } else if (['*', '/', '%'].includes(operator)) {
+            binary_operator = toggleSpace('multiplicative_operator')
+          } else if (['<<', '>>', '>>>'].includes(operator)) {
+            binary_operator = toggleSpace('shift_operators')
+          }
+          let s = `(${l}${binary_operator}${operator}${binary_operator}${r})`
           return s
         } else if (type === 'ExpressionStatement') {
           let expression = node.expression
           let e = codeGen(expression)
           return e
-        } else if (type === 'CallExpression') {
-          let callee = node.callee
-          let args = node.arguments
-          let c = codeGen(callee)
-          let a = codeGen(args)
-          let r = `${c}(${a})`
-          return r
-        } else if (type === 'MemberExpression') {
-          let object = node.object
-          let property = node.property
-          let o = codeGen(object)
-          let p = codeGen(property)
-          let r = `${o}.${p}`
-          return r
         } else if (type === 'NewExpression') {
           let callee = node.callee
           let args = node.arguments
@@ -703,7 +716,7 @@ function foo(x,y,z){
         } else if (type === 'ObjectExpression') {
           let properties = node.properties
           let p = properties.map(p => codeGen(p)).join(', ')
-          let r = `${p}`
+          let r = `{${p}}`
           return r
         } else if (type === 'ArrayExpression') {
           let elements = node.elements
@@ -727,7 +740,8 @@ function foo(x,y,z){
           let right = node.right
           let l = codeGen(left)
           let r = codeGen(right)
-          let s = `${l}=${r}`
+          let assignment_operator = toggleSpace('assignment_operator')
+          let s = `${l}${assignment_operator}=${assignment_operator}${r}`
           return s
         } else if (type === 'ExpressionStatement') {
           let expression = node.expression
@@ -761,15 +775,22 @@ function foo(x,y,z){
           let t = codeGen(test)
           let c = codeGen(consequent)
           let a = alternate ? codeGen(alternate) : ''
-          let r = `if${t}${c}${alternate?'else'+a : ''}`
+          let if_space = toggleSpace('if')
+          let if_left_brace = toggleSpace('if_left_brace')
+          let else_left_brace = toggleSpace('else_left_brace')
+          let else_keyword = toggleSpace('else_keyword')
+          let if_parentheses = toggleSpace('if_parentheses')
+          let r = `if${if_space}${t}${if_left_brace}${c}${alternate?else_keyword+'else'+else_left_brace+a : ''}`
           return r
         } else if (type === 'UnaryExpression') {
-            let operator = node.operator
-            let prefix = node.prefix
-            let argument = node.argument
-            let a = codeGen(argument)
-            let r = `${operator}${a}`
-            return r
+          let operator = node.operator
+          let prefix = node.prefix
+          let argument = node.argument
+          let a = codeGen(argument)
+          let before_unary = toggleSpace('before_unary')
+          let after_unary = toggleSpace('after_unary')
+          let r = `${before_unary}${operator}${after_unary}${a}`
+          return r
         } else if (type === 'ForStatement') {
           let init = node.init
           let test = node.test
@@ -779,14 +800,21 @@ function foo(x,y,z){
           let t = codeGen(test)
           let u = codeGen(update)
           let b = codeGen(body)
-          let r = `for(${i}; ${t}; ${u})${b}`
+          let for_space = toggleSpace('for')
+          let for_left_brace = toggleSpace('for_left_brace')
+          let for_parentheses = toggleSpace('for_parentheses')
+          let r = `for${for_space}(${for_parentheses}${i}; ${t}; ${u}${for_parentheses})${for_left_brace}${b}`
           return r
         } else if (type === 'UpdateExpression') {
           let operator = node.operator
           let prefix = node.prefix
           let argument = node.argument
           let a = codeGen(argument)
-          let r = `${a}${operator}`
+          let unary_additive_operators = ''
+          if (['+', '-', '++', '--'].includes(operator)) {
+            unary_additive_operators = toggleSpace('unary_additive_operators')
+          }
+          let r = `${a}${unary_additive_operators}${operator}`
           return r
         }else if (type === 'SwitchStatement') {
           let discriminant = node.discriminant
@@ -797,8 +825,10 @@ function foo(x,y,z){
           let c = cases.map(c => {
             return startSpace + codeGen(c)
           }).join('\n')
-
-          let r = `switch(${d}){\n${c}\n${endSpace}}`
+          let switch_space = toggleSpace('switch')
+          let switch_left_brace = toggleSpace('switch_left_brace')
+          let switch_parentheses = toggleSpace('switch_parentheses')
+          let r = `switch${switch_space}(${switch_parentheses}${d}${switch_parentheses})${switch_left_brace}{\n${c}\n${endSpace}}`
           return r
         } else if (type === 'SwitchCase') {
           let consequent = node.consequent
@@ -837,30 +867,41 @@ function foo(x,y,z){
           let b = codeGen(block)
           let h = codeGen(handler)
           let f = codeGen(finalizer)
-          let r = `try${b}${h}finally${f}`
+          let try_left_brace = toggleSpace('try_left_brace')
+          let finally_left_brace = toggleSpace('finally_left_brace')
+          let finally_keyword = toggleSpace('finally_keyword')
+          let r = `try${try_left_brace}${b}${h}${finally_keyword}finally${finally_left_brace}${f}`
           return r
         } else if (type === 'WhileStatement') {
           let test = node.test
           let body = node.body
-          let startSpace =  fillIndent(indentConfig.indent * node.indentCount)
-          let endSpace = fillIndent(indentConfig.indent * (node.indentCount - 1))
           let t = codeGen(test)
           let b = codeGen(body)
-          let r = `while(${t})${b}`
+          let while_space = toggleSpace('while')
+          let while_left_brace = toggleSpace('while_left_brace')
+          let while_parentheses = toggleSpace('while_parentheses')
+          let r = `while${while_space}(${while_parentheses}${t}${while_parentheses})${while_left_brace}${b}`
           return r
         } else if (type === 'DoWhileStatement') {
           let test = node.test
           let body = node.body
           let t = codeGen(test)
           let b = codeGen(body)
-          let r = `do${b}while${t}`
+          let while_space = toggleSpace('while')
+          let do_left_brace = toggleSpace('do_left_brace')
+          let while_keyword = toggleSpace('while_keyword')
+          let r = `do${do_left_brace}${b}${while_keyword}while${while_space}${t}`
           return r
         } else if (type === 'CatchClause') {
           let param = node.param
           let body = node.body
           let p = codeGen(param)
           let b = codeGen(body)
-          let r = `catch(${p})${b}`
+          let catch_space = toggleSpace('catch')
+          let catch_left_brace = toggleSpace('catch_left_brace')
+          let catch_keyword = toggleSpace('catch_keyword')
+          let catch_parentheses = toggleSpace('catch_parentheses')
+          let r = `${catch_keyword}catch${catch_space}(${catch_parentheses}${p}${catch_parentheses})${catch_left_brace}${b}`
           return r
         } else if (type === 'LogicalExpression') {
           let operator = node.operator
@@ -868,7 +909,8 @@ function foo(x,y,z){
           let right = node.right
           let l = codeGen(left)
           let r = codeGen(right)
-          let s = `(${l}${operator}${r})`
+          let logical_operator = toggleSpace('logical_operator')
+          let s = `(${l}${logical_operator}${operator}${logical_operator}${r})`
           return s
         }
     }
