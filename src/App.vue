@@ -492,7 +492,9 @@ function foo(x,y,z){
           let specifiers = node.specifiers
           let source = node.source
           // 引入用逗号分隔，所以返回结果 join(',')
-          let s = specifiers.map(s => codeGen(s)).join(', ')
+          let before_comma = toggleSpace('before_comma')
+          let after_comma = toggleSpace('after_comma')
+          let s = specifiers.map(s => codeGen(s)).join(`${before_comma},${after_comma}`)
           let v = codeGen(source)
           // 检查是否勾选对应选项
           let es6_import_or_export_braces_space = toggleSpace('es6_import_or_export_braces')
@@ -552,7 +554,9 @@ function foo(x,y,z){
           let async = node.async
           let params = node.params
           let body = node.body
-          let p = params.map(p => codeGen(p)).join(', ')
+          let before_comma = toggleSpace('before_comma')
+          let after_comma = toggleSpace('after_comma')
+          let p = params.map(p => codeGen(p)).join(`${before_comma},${after_comma}`)
           let b = codeGen(body)
           let function_expression = toggleSpace('function_expression')
           let function_left_brace = toggleSpace('function_left_brace')
@@ -561,7 +565,9 @@ function foo(x,y,z){
           return r
         } else if (type === 'ObjectPattern') {
           let properties = node.properties
-          let p = properties.map(p => codeGen(p)).join(', ')
+          let before_comma = toggleSpace('before_comma')
+          let after_comma = toggleSpace('after_comma')
+          let p = properties.map(p => codeGen(p)).join(`${before_comma},${after_comma}`)
           let object_literal_braces = toggleSpace('object_literal_braces')
           let r = `{${object_literal_braces}${p}${object_literal_braces}}`
           return r
@@ -621,7 +627,8 @@ function foo(x,y,z){
         } else if (type === 'JSXExpressionContainer') {
           let expression = node.expression
           let e = codeGen(expression)
-          let r = `{${e}}`
+          let interpolation_expressions = toggleSpace('interpolation_expressions')
+          let r = `{${interpolation_expressions}${e}${interpolation_expressions}}`
           return r
         } else if (type === 'TemplateLiteral') {
           let expressions = node.expressions
@@ -631,8 +638,9 @@ function foo(x,y,z){
           // e 拼接一个空字符串，用于遍历 quasis
           e.concat('')
           let s = ''
+          let interpolation_expressions = toggleSpace('interpolation_expressions')
           for (let i = 0; i < e.length; i++) {
-            s += q[i] + '${'+ e[i] + '}'
+            s += q[i] + '${'+ interpolation_expressions + e[i] + interpolation_expressions +'}'
           }
           let r = `\`${s}\``
           return r
@@ -642,7 +650,9 @@ function foo(x,y,z){
           let callee = node.callee
           let args = node.arguments
           let c = codeGen(callee)
-          let a = args.map(a => codeGen(a)).join(', ')
+          let before_comma = toggleSpace('before_comma')
+          let after_comma = toggleSpace('after_comma')
+          let a = args.map(a => codeGen(a)).join(`${before_comma},${after_comma}`)
           let function_call = toggleSpace('function_call')
           let function_call_parentheses = toggleSpace('function_call_parentheses')
           let r = `${c}${function_call}(${function_call_parentheses}${a}${function_call_parentheses})`
@@ -650,7 +660,9 @@ function foo(x,y,z){
         } else if (type === 'ArrowFunctionExpression') {
           let params = node.params
           let body = node.body
-          let p = params.map(p => codeGen(p)).join(', ')
+          let before_comma = toggleSpace('before_comma')
+          let after_comma = toggleSpace('after_comma')
+          let p = params.map(p => codeGen(p)).join(`${before_comma},${after_comma}`)
           let b = codeGen(body)
           let async_arrow_function = toggleSpace('async_arrow_function')
           let arrow_function = toggleSpace('arrow_function')
@@ -670,7 +682,9 @@ function foo(x,y,z){
         } else if (type === 'VariableDeclaration') {
           let declarations = node.declarations
           let kind = node.kind
-          let d = declarations.map(d => codeGen(d)).join(', ')
+          let before_comma = toggleSpace('before_comma')
+          let after_comma = toggleSpace('after_comma')
+          let d = declarations.map(d => codeGen(d)).join(`${before_comma},${after_comma}`)
           let r = `${kind} ${d}`
           return r
         } else if (type === 'VariableDeclarator') {
@@ -715,13 +729,18 @@ function foo(x,y,z){
           return r
         } else if (type === 'ObjectExpression') {
           let properties = node.properties
-          let p = properties.map(p => codeGen(p)).join(', ')
+          let before_comma = toggleSpace('before_comma')
+          let after_comma = toggleSpace('after_comma')
+          let p = properties.map(p => codeGen(p)).join(`${before_comma},${after_comma}`)
           let r = `{${p}}`
           return r
         } else if (type === 'ArrayExpression') {
           let elements = node.elements
-          let e = elements.map(e => codeGen(e)).join(', ')
-          let r = `[${e}]`
+          let before_comma = toggleSpace('before_comma')
+          let after_comma = toggleSpace('after_comma')
+          let e = elements.map(e => codeGen(e)).join(`${before_comma},${after_comma}`)
+          let array_brackets = toggleSpace('array_brackets')
+          let r = `[${array_brackets}${e}${array_brackets}]`
           return r
         } else if (type === 'FunctionDeclaration') {
           let id = node.id
@@ -731,7 +750,9 @@ function foo(x,y,z){
           let params = node.params
           let body = node.body
           let name = codeGen(id)
-          let p = params.map(p => codeGen(p)).join(',')
+          let before_comma = toggleSpace('before_comma')
+          let after_comma = toggleSpace('after_comma')
+          let p = params.map(p => codeGen(p)).join(`${before_comma},${after_comma}`)
           let b = codeGen(body)
           let r = `function ${generator?'*':''}${name}(${p})${b}`
           return r
@@ -755,7 +776,9 @@ function foo(x,y,z){
           return r
         } else if (type === 'ArrayPattern') {
           let elements = node.elements
-          let e = elements.map(e => codeGen(e)).join(', ')
+          let before_comma = toggleSpace('before_comma')
+          let after_comma = toggleSpace('after_comma')
+          let e = elements.map(e => codeGen(e)).join(`${before_comma},${after_comma}`)
           let r = `[${e}]`
           return r 
         } else if (type === 'RestElement') {
@@ -834,7 +857,6 @@ function foo(x,y,z){
           let consequent = node.consequent
           let test = node.test
           let startSpace =  fillIndent(indentConfig.indent * node.indentCount)
-          let endSpace = fillIndent(indentConfig.indent * (node.indentCount - 1))
           let c = consequent.map(c => {
             return startSpace + codeGen(c)
           }).join('\n')
@@ -858,7 +880,11 @@ function foo(x,y,z){
           let t = codeGen(test)
           let c = codeGen(consequent)
           let a = codeGen(alternate)
-          let r = `${t}?${c}:${a}`
+          let before_q = toggleSpace('before_?')
+          let after_q = toggleSpace('after_?')
+          let before_c = toggleSpace('before_:')
+          let after_c = toggleSpace('after_:')
+          let r = `${t}${before_q}?${after_q}${c}${before_c}:${after_c}${a}`
           return r
         } else if (type === 'TryStatement') {
           let block = node.block
