@@ -207,82 +207,6 @@ function foo (x, y, z) {
     }
 }
 `
-
-// import {Component,Message} from 'react'
-
-// export class Greeter{
-//     greetNTimes(to,{from,times}){
-//         return range(times).map(item=>this.greet(to,from))
-//     }
-// }
-
-// export class ConsoleGreeter extends Greeter {
-//     greet (to, from) {
-//         return \`Hello, \${to} from \${from.join(',')}\`
-//     }
-// }
-
-
-// export class ReactGreeter extends Greeter{
-//     greet(to,from){
-//         return (<div className="greeting">
-//             Hello, {to} from
-//             {from.map(name=><Name>{name}</Name>)}
-//         </div>)
-//     }
-// }
-
-// var b = (1+(2+(3+4)))*3
-// new ConsoleGreeter().greetNTimes('World',{name:['Webstorm'],times:3})
-
-// function*fibonacci(current=1,next=1){
-//     yield current
-//     yield*fibonacci(next,current+next)
-// }
-
-// let [first, second, ...rest] = take(fibonacci(...[1, 2, 3]), 10)
-
-// function foo(x,y,z){
-//     var i=0
-//     var x={0:'zero',1:'one'}
-//     var a=[0,1,2]
-//     var foo = function({ a: [] }) {
-//     }
-//     var asyncFoo=async(x,y,z)=>{
-//     }
-//     var v=x.map(s=>s.length)
-//     if(!i>10){
-//         for(var j=0; j<10; j++){
-//             switch(j){
-//                 case 0:
-//                     value='zero'
-//                     break
-//                 case 1:
-//                     value='one'
-//                     break
-//             }
-//             var c=j>5?'GT 5':'LE 5'
-//         }
-//     }else{
-//         var j=0
-//         try{
-//             while(j<10){
-//                 if(i==j||j>5){
-//                     a[j]=i+j*12
-//                 }
-//                 i=(j<<2)&4
-//                 j++
-//             }
-//             do{
-//                 j--
-//             }while(j>0)
-//         }catch(e){
-//             alert('Failure: '+e.message)
-//         }finally{
-//             reset(a,i)
-//         }
-//     }
-// }
 ,
       checkList: [
       // before_parentheses
@@ -479,6 +403,46 @@ function foo (x, y, z) {
         }
       })
       // log('astBody',astBody)
+    }
+
+    // 判断 BinaryExpression 是否需要加括号
+    const astAddParentheses = (ast) => {
+      let tokens = ast.tokens.filter(e => e.value === '(')
+      log('tokens',tokens)
+      // 获取每个左括号起始位置和结束位置的数组
+      let list = tokens.map(e => ({
+        start: e.start,
+        end: e.end
+      }))
+      log('list',list)
+      ast.body.forEach(body => {
+        traverseNodes(body)
+      })
+    }
+
+    // 遍历子节点
+    const traverseNodes = (node) => {
+      if (node.hasChildNodes) {
+        let childNodes = node.childNodes
+        childNodes.forEach(child => {
+          if (child.type === 'BinaryExpression') {
+            processParentheses(child)
+          }
+          traverseNodes(child)
+        })
+      } else {
+        return node
+      }
+    }
+
+    // 给需要加括号的节点添加标记
+    const processParentheses = (node) => {
+      log('process',node)
+      // if (node.type === 'BinaryExpression') {
+      //   log('BinaryExpression')
+      // }
+      // if (node.hasChildNode
+
     }
 
     const typeMap = {
@@ -698,7 +662,7 @@ function foo (x, y, z) {
         let b = codeGen(body)
         let async_arrow_function = toggleSpace('async_arrow_function')
         let arrow_function = toggleSpace('arrow_function')
-        let r = `${async?async+async_arrow_function:''}(${p})${arrow_function}=>${arrow_function}${b}`
+        let r = `${async?'async'+async_arrow_function:''}${params.length>1?'('+p+')':p}${arrow_function}=>${arrow_function}${b}`
         return r
       },
       MemberExpression(node) {
@@ -727,7 +691,7 @@ function foo (x, y, z) {
         let id = node.id
         let init = node.init
         let name = codeGen(id)
-        let i = codeGen(init)
+        let i = codeGen(init, 'VariableDeclarator')
         let r = `${name} = ${i}`
         return r
       },
@@ -751,7 +715,7 @@ function foo (x, y, z) {
         } else if (['<<', '>>', '>>>'].includes(operator)) {
           binary_operator = toggleSpace('shift_operators')
         }
-        let s = `(${l}${binary_operator}${operator}${binary_operator}${r})`
+        let s = `${l}${binary_operator}${operator}${binary_operator}${r}`
         return s
       },
       ExpressionStatement(node) {
@@ -764,7 +728,7 @@ function foo (x, y, z) {
         let args = node.arguments
         let c = codeGen(callee)
         let a = args.length ? codeGen(args) : ''
-        let r = `New ${c}(${a})`
+        let r = `new ${c}(${a})`
         return r
       },
       ObjectExpression(node) {
@@ -798,7 +762,7 @@ function foo (x, y, z) {
         let b = codeGen(body)
         let before = toggleSpace('before_*_in_generator')
         let after = toggleSpace('after_*_in_generator')
-        let r = `function ${generator?before+'*'+after:''}${name}(${p})${b}`
+        let r = `function${generator?before+'*'+after:' '}${name}(${p})${b}`
         return r
       },
       AssignmentPattern(node) {
@@ -818,8 +782,9 @@ function foo (x, y, z) {
       },
       YieldExpression(node) {
         let args = node.argument
+        let delegate = node.delegate
         let a = codeGen(args)
-        let r = `yield ${a}`
+        let r = `yield${delegate?'*':''} ${a}`
         return r
       },
       ArrayPattern(node) {
@@ -855,7 +820,7 @@ function foo (x, y, z) {
         let else_left_brace = toggleSpace('else_left_brace')
         let else_keyword = toggleSpace('else_keyword')
         let if_parentheses = toggleSpace('if_parentheses')
-        let r = `if${if_space}${t}${if_left_brace}${c}${alternate?else_keyword+'else'+else_left_brace+a : ''}`
+        let r = `if${if_space}(${t})${if_left_brace}${c}${alternate?else_keyword+'else'+else_left_brace+a : ''}`
         return r
       },
       UnaryExpression(node) {
@@ -980,7 +945,7 @@ function foo (x, y, z) {
         let while_space = toggleSpace('while')
         let do_left_brace = toggleSpace('do_left_brace')
         let while_keyword = toggleSpace('while_keyword')
-        let r = `do${do_left_brace}${b}${while_keyword}while${while_space}${t}`
+        let r = `do${do_left_brace}${b}${while_keyword}while${while_space}(${t})`
         return r
       },
       CatchClause(node) {
@@ -1002,7 +967,7 @@ function foo (x, y, z) {
         let l = codeGen(left)
         let r = codeGen(right)
         let logical_operator = toggleSpace('logical_operator')
-        let s = `(${l}${logical_operator}${operator}${logical_operator}${r})`
+        let s = `${l}${logical_operator}${operator}${logical_operator}${r}`
         return s
       }
     }
@@ -1018,6 +983,7 @@ function foo (x, y, z) {
     onMounted(() => {
       state.ast = parse(state.sourceCode)
       astAddIndentCount(state.ast.body)
+      astAddParentheses(state.ast)
       let s = codeGen(state.ast)
       s = `${s}`
       state.newCode = s
@@ -1040,6 +1006,8 @@ function foo (x, y, z) {
       classAddIndent,
       ifAddIndent,
       astAddIndentCount,
+      astAddParentheses,
+      processParentheses,
       typeMap,
       codeGen
     }
