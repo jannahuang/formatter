@@ -229,7 +229,69 @@ const codeGen = (node) => {
 添加事件之后，便可实现如下格式化效果：
 ![formatter-indent](https://raw.githubusercontent.com/jannahuang/blog/main/pictures/formatter-indent.gif)
 
+### 处理细节
+处理完缩进和空格之后，对着 Webstorm 的配置进行检查。发现如下细节问题。
+### Function 多余空格
+当同时选中空格配置 function_declaration 和 function_expression 时，发现 function 有多余空格，如图所示：
+![function_space_wrong](https://raw.githubusercontent.com/jannahuang/blog/main/pictures/function_space_wrong.png)
+检查 AST 可见，function_declaration 是处理 MethodDefinition 情况的空格，function_expression 是处理 VariableDeclarator 情况的空格。
+![function_method_definition](https://raw.githubusercontent.com/jannahuang/blog/main/pictures/function_method_definition.png)
+![function_variable_declarator](https://raw.githubusercontent.com/jannahuang/blog/main/pictures/function_variable_declaration.png)
+而处理的节点 type 都是 FunctionExpression，所以需要根据父节点的 type 进行判断。由于需要增加传参，则将之前 codeGen() 里的 if-else 判断拆分为独立的函数。
+```javascript
+const codeGen = (node, parent) => {
+  let type = node.type
+  let result = ''
+  result = typeMap[type] && typeMap[type](node, parent)
+  return result
+}
 
+const typeMap = {
+  Program(node) {
+    let body = node.body
+    let s = body.map(b => codeGen(b)).join('\n\n')
+    return s
+  },
+  MethodDefinition(node) {
+    let key = node.key
+    let value = node.value
+    let k = codeGen(key)
+    let v= codeGen(value, 'MethodDefinition')
+    let function_declaration = toggleSpace('function_declaration')
+    let r = `${k}${function_declaration}${v}`
+    return r
+  },
+  VariableDeclarator(node) {
+    let id = node.id
+    let init = node.init
+    let name = codeGen(id)
+    let i = codeGen(init, 'VariableDeclarator')
+    let r = `${name} = ${i}`
+    return r
+  },
+  FunctionExpression(node, parentType) {
+    let params = node.params
+    let body = node.body
+    let before_comma = toggleSpace('before_comma')
+    let after_comma = toggleSpace('after_comma')
+    let p = params.map(p => codeGen(p)).join(`${before_comma},${after_comma}`)
+    let b = codeGen(body)
+    let function_expression = toggleSpace('function_expression')
+    let function_left_brace = toggleSpace('function_left_brace')
+    let function_declaration_parentheses = toggleSpace('function_declaration_parentheses')
+    let r = ''
+    if (parentType === 'MethodDefinition') {
+      r = `(${function_declaration_parentheses}${p}${function_declaration_parentheses})${function_left_brace}${b}`
+    } else {
+      r = `function${function_expression}(${function_declaration_parentheses}${p}${function_declaration_parentheses})${function_left_brace}${b}`
+    }
+    return r
+  },
+....
+}
+```
+处理完即可正常显示：
+![function_space](https://raw.githubusercontent.com/jannahuang/blog/main/pictures/function_space.gif)
 
 
 
